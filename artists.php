@@ -5,119 +5,27 @@ require_once 'includes/navbar.php';
 
 $page_title = "Buddhist Artists";
 
-// Get all approved artists
-$sql = "SELECT a.*, u.username, u.full_name, u.profile_image, u.bio,
+// Get all approved artists - FIXED ORDER BY
+$sql = "SELECT a.*, u.username, u.full_name, u.profile_image, u.bio, u.created_at,
                (SELECT COUNT(*) FROM artworks WHERE artist_id = a.artist_id) as artwork_count,
                (SELECT COUNT(*) FROM commissions WHERE artist_id = a.artist_id) as commission_count
         FROM artists a
         JOIN users u ON a.user_id = u.user_id
         WHERE a.status = 'approved'
-        ORDER BY a.created_at ASC";
+        ORDER BY u.created_at ASC";  // Fixed: using u.created_at instead of a.created_at
 
 $result = mysqli_query($conn, $sql);
 $total_artists = mysqli_num_rows($result);
 ?>
 
-<div class="artists-container">
-    <!-- Page Header -->
-    <div class="page-header">
-        <h1><i class="fas fa-paint-brush"></i> Our Artists</h1>
-        <p>Meet our talented Buddhist artists</p>
-    </div>
-    
-    <?php if (isset($_SESSION['message'])): ?>
-        <div class="toast-notification toast-<?php echo $_SESSION['message_type']; ?>">
-            <i class="fas <?php echo $_SESSION['message_type'] == 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
-            <span><?php echo $_SESSION['message']; ?></span>
-        </div>
-        <?php unset($_SESSION['message']); unset($_SESSION['message_type']); ?>
-    <?php endif; ?>
-    
-        
-       <!-- Artists Table -->
-<div class="data-table-container">
-    <div class="table-header">
-        <h2>All Artists</h2>
-        <div class="table-info"><?php echo $total_artists; ?> artist<?php echo $total_artists != 1 ? 's' : ''; ?></div>
-    </div>
-    
-    <div class="table-responsive">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Artist</th>
-                    <th>Specialization</th>
-                    <th>Experience</th>
-                    <th>Artworks</th>
-                    <th>Commissions</th>
-                    <th>Joined</th>
-                    <th>Actions</th>
-                </thead>
-            <tbody>
-                <?php if ($total_artists > 0): ?>
-                    <?php while ($artist = mysqli_fetch_assoc($result)): 
-                        $artist_name = $artist['full_name'] ?? $artist['username'];
-                        $specialization = $artist['specialization'] ?? 'Artist';
-                        $experience = $artist['experience_years'] ?? 0;
-                        $joined_date = date('M Y', strtotime($artist['created_at']));
-                    ?>
-                        <tr>
-                            <td style="font-weight: 500;"><?php echo $artist['artist_id']; ?></td>
-                            <td>
-                                <div class="artist-cell">
-                                    <img src="uploads/profiles/<?php echo htmlspecialchars($artist['profile_image'] ?? 'default.jpg'); ?>" 
-                                         alt="<?php echo htmlspecialchars($artist_name); ?>"
-                                         class="artist-avatar">
-                                    <div>
-                                        <strong><?php echo htmlspecialchars($artist_name); ?></strong>
-                                        <small>@<?php echo htmlspecialchars($artist['username']); ?></small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="specialization-badge"><?php echo htmlspecialchars($specialization); ?></span>
-                            </td>
-                            <td>
-                                <?php echo $experience; ?> <?php echo $experience == 1 ? 'year' : 'years'; ?>
-                            </td>
-                            <td>
-                                <span class="stat-badge artworks">
-                                     <?php echo $artist['artwork_count']; ?>
-                                </span>
-                            </td>
-                            <td>
-                                <span class="stat-badge commissions">
-                                    <i class="fas fa-handshake"></i> <?php echo $artist['commission_count'] ?? 0; ?>
-                                </span>
-                            </td>
-                            <td>
-                                <i class="fas fa-calendar-alt"></i> <?php echo $joined_date; ?>
-                            </td>
-                            <td>
-                                <a href="artist-profile.php?id=<?php echo $artist['artist_id']; ?>" 
-                                   class="btn-action btn-view-profile" title="View Profile">
-                                    <i class="fas fa-eye"></i> View
-                                </a>
-                            </td>
-                        </tr>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="8" class="no-data">
-                            <i class="fas fa-users-slash"></i>
-                            <h4>No Artists Found</h4>
-                            <p>Artists will appear here when they register and get approved</p>
-                        </td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-
 <style>
+/* Dark Theme Global Styles */
+body {
+            background: linear-gradient(135deg, #f9f7f1 0%, #f5f5f0 100%);
+    min-height: 100vh;
+    font-family: 'Inter', sans-serif;
+}
+
 .artists-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -132,30 +40,30 @@ $total_artists = mysqli_num_rows($result);
 
 .page-header h1 {
     font-size: 2rem;
-    color: #2c3e50;
+    color:black;
     margin-bottom: 0.5rem;
 }
 
 .page-header h1 i {
-    color: #e74c3c;
+    color: black;
     margin-right: 10px;
 }
 
 .page-header p {
-    color: #7f8c8d;
+    color: #bdc3c7;
     font-size: 1rem;
 }
 
-/* Toast Notification */
+/* Toast Notification - Dark Theme */
 .toast-notification {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: white;
+    background: #2c3e50;
     padding: 1rem 2rem;
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -166,14 +74,15 @@ $total_artists = mysqli_num_rows($result);
     min-width: 280px;
     justify-content: center;
     border-left: 4px solid;
+    color: #ecf0f1;
 }
 
 .toast-success {
-    border-left-color: #27ae60;
+    border-left-color: #2ecc71;
 }
 
 .toast-success i {
-    color: #27ae60;
+    color: #2ecc71;
 }
 
 .toast-error {
@@ -185,7 +94,7 @@ $total_artists = mysqli_num_rows($result);
 }
 
 .toast-notification span {
-    color: #2c3e50;
+    color: #ecf0f1;
 }
 
 @keyframes slideIn {
@@ -199,27 +108,45 @@ $total_artists = mysqli_num_rows($result);
     }
 }
 
-/* Data Table */
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+        visibility: hidden;
+    }
+}
+
+/* Data Table Container - WHITE Background for table */
 .data-table-container {
     background: white;
-    border-radius: 16px;
-    padding: 1rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    border: 1px solid rgba(0,0,0,0.1);
 }
 
 .table-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.8rem;
-    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .table-header h2 {
     margin: 0;
     font-size: 1.2rem;
     color: #2c3e50;
+}
+
+.table-header h2 i {
+    color: #e74c3c;
+    margin-right: 8px;
 }
 
 .table-info {
@@ -246,7 +173,7 @@ $total_artists = mysqli_num_rows($result);
     color: #2c3e50;
     font-weight: 600;
     font-size: 0.85rem;
-    border-bottom: 2px solid #e9ecef;
+    border-bottom: 2px solid #e0e0e0;
 }
 
 .data-table td {
@@ -322,6 +249,10 @@ $total_artists = mysqli_num_rows($result);
     color: #3498db;
 }
 
+.stat-badge.commissions i {
+    color: #3498db;
+}
+
 /* Action Button */
 .btn-action {
     display: inline-flex;
@@ -333,12 +264,13 @@ $total_artists = mysqli_num_rows($result);
     border-radius: 20px;
     text-decoration: none;
     font-size: 0.75rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all 0.2s;
 }
 
 .btn-action:hover {
-    background: #e6b800;
+    background:#e73c3c;
+    color: white;
     transform: translateY(-2px);
 }
 
@@ -377,6 +309,10 @@ $total_artists = mysqli_num_rows($result);
         padding: 1rem;
     }
     
+    .data-table-container {
+        padding: 1rem;
+    }
+    
     .data-table th:nth-child(4),
     .data-table td:nth-child(4),
     .data-table th:nth-child(5),
@@ -385,6 +321,108 @@ $total_artists = mysqli_num_rows($result);
     }
 }
 </style>
+
+<div class="artists-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 style="font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;"><i class="fas fa-paint-brush"></i> Our Artists</h1>
+        <p>Meet our talented Buddhist artists</p>
+    </div>
+    
+    <?php if (isset($_SESSION['message'])): ?>
+        <div class="toast-notification toast-<?php echo $_SESSION['message_type']; ?>">
+            <i class="fas <?php echo $_SESSION['message_type'] == 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
+            <span><?php echo $_SESSION['message']; ?></span>
+        </div>
+        <?php unset($_SESSION['message']); unset($_SESSION['message_type']); ?>
+    <?php endif; ?>
+    
+    <!-- Artists Table -->
+    <div class="data-table-container">
+        <div class="table-header">
+            <h2><i class="fas fa-users"></i> All Artists</h2>
+            <div class="table-info"><?php echo $total_artists; ?> artist<?php echo $total_artists != 1 ? 's' : ''; ?></div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Artist</th>
+                        <th>Specialization</th>
+                        <th>Experience</th>
+                        <th>Artworks</th>
+                        <th>Custom Orders</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if ($total_artists > 0): ?>
+                        <?php 
+                        // Reset result pointer to beginning
+                        mysqli_data_seek($result, 0);
+                        while ($artist = mysqli_fetch_assoc($result)): 
+                            $artist_name = $artist['full_name'] ?? $artist['username'];
+                            $specialization = $artist['specialization'] ?? 'Artist';
+                            $experience = $artist['experience_years'] ?? 0;
+                            $joined_date = date('M Y', strtotime($artist['created_at']));
+                        ?>
+                            <tr>
+                                <td style="font-weight: 500;"><?php echo $artist['artist_id']; ?></td>
+                                <td>
+                                    <div class="artist-cell">
+                                        <img src="uploads/profiles/<?php echo htmlspecialchars($artist['profile_image'] ?? 'default.jpg'); ?>" 
+                                             alt="<?php echo htmlspecialchars($artist_name); ?>"
+                                             class="artist-avatar">
+                                        <div>
+                                            <strong><?php echo htmlspecialchars($artist_name); ?></strong>
+                                            <small>@<?php echo htmlspecialchars($artist['username']); ?></small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <td>
+                                    <span class="specialization-badge"><?php echo htmlspecialchars($specialization); ?></span>
+                                </div>
+                                <td>
+                                    <?php echo $experience; ?> <?php echo $experience == 1 ? 'year' : 'years'; ?>
+                                </div>
+                                <td>
+                                    <span class="stat-badge artworks">
+                                        <i class="fas fa-palette"></i> <?php echo $artist['artwork_count']; ?>
+                                    </span>
+                                </div>
+                                <td>
+                                    <span class="stat-badge commissions">
+                                        <i class="fas fa-pencil-ruler"></i> <?php echo $artist['commission_count'] ?? 0; ?>
+                                    </span>
+                                </div>
+                                <td>
+                                    <i class="fas fa-calendar-alt"></i> <?php echo $joined_date; ?>
+                                </div>
+                                <td>
+                                    <a href="artist-profile.php?id=<?php echo $artist['artist_id']; ?>" 
+                                       class="btn-action" title="View Profile">
+                                        View
+                                    </a>
+                                </div>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="8" class="no-data">
+                                <i class="fas fa-users-slash"></i>
+                                <h4>No Artists Found</h4>
+                                <p>Artists will appear here when they register and get approved</p>
+                            </div>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 <script>
 // Auto hide toast notification after 2 seconds
@@ -399,23 +437,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
     }
 });
-
-// Add fadeOut animation
-var style = document.createElement('style');
-style.textContent = `
-    @keyframes fadeOut {
-        from {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-        to {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.9);
-            visibility: hidden;
-        }
-    }
-`;
-document.head.appendChild(style);
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

@@ -29,12 +29,12 @@ if (!$artwork) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $title = trim($_POST['title']);
-    $description = trim($_POST['description']);
-    $category = $_POST['category'];
-    $materials = trim($_POST['materials']);
-    $creation_time = trim($_POST['creation_time']);
-    $symbolism = trim($_POST['symbolism']);
+    $title = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $category = $_POST['category'] ?? 'Other';
+    $materials = trim($_POST['materials'] ?? '');
+    $creation_time = trim($_POST['creation_time'] ?? '');
+    $symbolism = trim($_POST['symbolism'] ?? '');
     
     // Handle image update
     $image_path = $artwork['image_path'];
@@ -44,8 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $file_size = $_FILES['artwork_image']['size'];
         
         if (in_array($file_type, $allowed_types)) {
-            if ($file_size <= 5 * 1024 * 1024) { // 5MB limit
-                // Delete old image if not default
+            if ($file_size <= 5 * 1024 * 1024) {
                 if ($image_path != 'default.jpg' && file_exists(ARTWORK_UPLOAD_PATH . $image_path)) {
                     unlink(ARTWORK_UPLOAD_PATH . $image_path);
                 }
@@ -96,181 +95,293 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-$page_title = "Edit Artwork: " . htmlspecialchars($artwork['title']);
+// Helper function to safely escape values
+function safeHtml($value) {
+    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+$page_title = "Edit Artwork: " . safeHtml($artwork['title']);
 ?>
 
-<div class="container edit-container" style="max-width: 800px; margin: 0 auto; padding: 2rem;">
-    <h1 style="color: #2c3e50; margin-bottom: 2rem;">
-        <i class="fas fa-edit"></i> Edit Artwork
-    </h1>
-    
-    <?php if (isset($_SESSION['message'])): ?>
-        <div class="toast-notification toast-<?php echo $_SESSION['message_type']; ?>">
-            <i class="fas <?php echo $_SESSION['message_type'] == 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
-            <span><?php echo $_SESSION['message']; ?></span>
-        </div>
-        <?php unset($_SESSION['message']); unset($_SESSION['message_type']); ?>
-    <?php endif; ?>
-    
-    <form action="edit-artwork.php?id=<?php echo $artwork_id; ?>" method="POST" enctype="multipart/form-data" class="edit-form" style="background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
-        
-        <!-- Artwork Title -->
-        <div class="form-group" style="margin-bottom: 1.2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Artwork Title *</label>
-            <input type="text" id="title" name="title" value="<?php echo htmlspecialchars($artwork['title']); ?>" required
-                   style="width: 100%; padding: 0.8rem; border: 2px solid #e9ecef; border-radius: 8px;">
-        </div>
-        
-        <!-- Description -->
-        <div class="form-group" style="margin-bottom: 1.2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Description</label>
-            <textarea name="description" rows="5" style="width: 100%; padding: 0.8rem; border: 2px solid #e9ecef; border-radius: 8px;"><?php echo htmlspecialchars($artwork['description']); ?></textarea>
-        </div>
-        
-        <!-- Category
-        <div class="form-group" style="margin-bottom: 1.2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Category *</label>
-            <select name="category" required style="width: 100%; padding: 0.8rem; border: 2px solid #e9ecef; border-radius: 8px;">
-                <option value="Thangka" <?php echo $artwork['category'] == 'Thangka' ? 'selected' : ''; ?>>Thangka</option>
-                <option value="Sculpture" <?php echo $artwork['category'] == 'Sculpture' ? 'selected' : ''; ?>>Sculpture</option>
-                <option value="Mandala" <?php echo $artwork['category'] == 'Mandala' ? 'selected' : ''; ?>>Mandala</option>
-                <option value="Painting" <?php echo $artwork['category'] == 'Painting' ? 'selected' : ''; ?>>Painting</option>
-                <option value="Other" <?php echo $artwork['category'] == 'Other' ? 'selected' : ''; ?>>Other</option>
-            </select>
-        </div> -->
-        
-        <!-- Materials -->
-        <div class="form-group" style="margin-bottom: 1.2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Materials Used</label>
-            <input type="text" name="materials" value="<?php echo htmlspecialchars($artwork['materials']); ?>" 
-                   style="width: 100%; padding: 0.8rem; border: 2px solid #e9ecef; border-radius: 8px;">
-        </div>
-        
-        <!-- Creation Time -->
-        <div class="form-group" style="margin-bottom: 1.2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Creation Time</label>
-            <input type="text" name="creation_time" value="<?php echo htmlspecialchars($artwork['creation_time']); ?>" 
-                   placeholder="e.g., 3 months, 40 hours" style="width: 100%; padding: 0.8rem; border: 2px solid #e9ecef; border-radius: 8px;">
-        </div>
-        
-        <!-- Symbolism -->
-        <div class="form-group" style="margin-bottom: 1.2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Symbolism & Meaning</label>
-            <textarea name="symbolism" rows="3" style="width: 100%; padding: 0.8rem; border: 2px solid #e9ecef; border-radius: 8px;"><?php echo htmlspecialchars($artwork['symbolism']); ?></textarea>
-        </div>
-        
-        <!-- Current Image -->
-        <div class="current-image" style="margin-bottom: 1.2rem;">
-            <p style="font-weight: 600; margin-bottom: 0.5rem;">Current Image:</p>
-            <img src="uploads/artworks/<?php echo htmlspecialchars($artwork['image_path']); ?>" 
-                 alt="<?php echo htmlspecialchars($artwork['title']); ?>" 
-                 style="max-width: 200px; border-radius: 8px; border: 1px solid #eee;">
-        </div>
-        
-        <!-- New Image Upload -->
-        <div class="form-group" style="margin-bottom: 1.2rem;">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Change Image (Optional)</label>
-            <input type="file" name="artwork_image" accept="image/*" 
-                   style="width: 100%; padding: 0.8rem; border: 2px dashed #e9ecef; border-radius: 8px;">
-            <small style="color: #666;">Leave empty to keep current image. Max 5MB.</small>
-        </div>
-        
-        <!-- Form Actions -->
-        <div class="form-actions" style="display: flex; gap: 1rem; margin-top: 2rem;">
-            <button type="submit" class="btn-primary" style="background: #27ae60; color: white; padding: 0.8rem 2rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
-                <i class="fas fa-save"></i> Update Artwork
-            </button>
-            <a href="my-artworks.php" class="btn-secondary" style="background: #e74c3c; color: white; padding: 0.8rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 600;">
-                <i class="fas fa-times"></i> Cancel
-            </a>
-        </div>
-    </form>
-</div>
-
 <style>
-.edit-container input:focus, .edit-container textarea:focus, .edit-container select:focus {
-    border-color: #27ae60;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+body {
+    background: linear-gradient(135deg, #f9f7f1 0%, #f5f5f0 100%);
+    min-height: 100vh;
 }
 
-/* Toast Notification */
-.toast-notification {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 1rem 2rem;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+.auth-container {
+    min-height: 85vh;
     display: flex;
     align-items: center;
-    gap: 12px;
-    z-index: 9999;
-    animation: slideIn 0.3s ease;
-    font-size: 1rem;
-    font-weight: 500;
-    min-width: 280px;
     justify-content: center;
-    border-left: 4px solid;
+    padding: 20px;
 }
 
-.toast-success {
-    border-left-color: #27ae60;
+.auth-card {
+    background: #ffffff;
+    padding: 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    max-width: 800px;
+    width: 100%;
+    border: 1px solid #e9ecef;
 }
 
-.toast-success i {
-    color: #27ae60;
+.auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
 }
 
-.toast-error {
-    border-left-color: #e74c3c;
+.auth-header h1 {
+    color: #2c3e50;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
 }
 
-.toast-error i {
+.auth-header h1 i {
+    color: #e74c3c;
+    margin-right: 10px;
+}
+
+.auth-header p {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+label i {
+    color: #e74c3c;
+    margin-right: 5px;
+}
+
+input, textarea, select {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1.5px solid #e9ecef;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #2c3e50;
+    font-size: 1rem;
+    transition: all 0.3s;
+    font-family: inherit;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: #27ae60;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+    outline: none;
+}
+
+.current-image {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e9ecef;
+}
+
+.current-image p {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 0.8rem;
+}
+
+.current-image p i {
     color: #e74c3c;
 }
 
-.toast-notification span {
+.current-image img {
+    max-width: 200px;
+    border-radius: 12px;
+    border: 2px solid #e9ecef;
+}
+
+.file-hint {
+    font-size: 0.7rem;
+    color: #6c757d;
+    margin-top: 5px;
+    display: block;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 0.9rem;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+}
+
+.button-group {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.toast-notification {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 9999;
+    font-size: 0.9rem;
+    border-left: 4px solid;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast-success { 
+    border-left-color: #27ae60; 
     color: #2c3e50;
 }
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.9);
-    }
-    to {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
+.toast-success i { color: #27ae60; }
+.toast-error { 
+    border-left-color: #e74c3c; 
+    color: #2c3e50;
 }
+.toast-error i { color: #e74c3c; }
 
-@keyframes fadeOut {
-    from {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
+
+
+@media (max-width: 600px) {
+    .auth-card {
+        padding: 1.5rem;
     }
-    to {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.9);
-        visibility: hidden;
+    .button-group {
+        flex-direction: column;
+    }
+    .current-image img {
+        max-width: 150px;
     }
 }
 </style>
 
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1><i class="fas fa-edit"></i> Edit Artwork</h1>
+            <p>Update your sacred masterpiece details</p>
+        </div>
+
+        <?php if (isset($_SESSION['message'])): ?>
+            <div class="toast-notification toast-<?php echo safeHtml($_SESSION['message_type']); ?>">
+                <i class="fas <?php echo ($_SESSION['message_type'] ?? '') == 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
+                <span><?php echo safeHtml($_SESSION['message']); ?></span>
+            </div>
+            <?php unset($_SESSION['message']); unset($_SESSION['message_type']); ?>
+        <?php endif; ?>
+
+        <form action="edit-artwork.php?id=<?php echo $artwork_id; ?>" method="POST" enctype="multipart/form-data">
+            
+            <div class="form-group">
+                <label><i class="fas fa-heading"></i> Artwork Title *</label>
+                <input type="text" name="title" value="<?php echo safeHtml($artwork['title']); ?>" required>
+            </div>
+            
+            <div class="form-group">
+                <label><i class="fas fa-align-left"></i> Description</label>
+                <textarea name="description" rows="5" placeholder="Describe the artwork, its meaning, and significance..."><?php echo safeHtml($artwork['description']); ?></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label><i class="fas fa-tag"></i> Category *</label>
+                <select name="category" required>
+                    <option value="Thangka" <?php echo (($artwork['category'] ?? '') == 'Thangka') ? 'selected' : ''; ?>>Thangka</option>
+                    <option value="Sculpture" <?php echo (($artwork['category'] ?? '') == 'Sculpture') ? 'selected' : ''; ?>>Sculpture</option>
+                    <option value="Mandala" <?php echo (($artwork['category'] ?? '') == 'Mandala') ? 'selected' : ''; ?>>Mandala</option>
+                    <option value="Painting" <?php echo (($artwork['category'] ?? '') == 'Painting') ? 'selected' : ''; ?>>Painting</option>
+                    <option value="Other" <?php echo (($artwork['category'] ?? '') == 'Other') ? 'selected' : ''; ?>>Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label><i class="fas fa-paintbrush"></i> Materials Used</label>
+                <input type="text" name="materials" value="<?php echo safeHtml($artwork['materials']); ?>" placeholder="e.g., Mineral pigments, Gold leaf, Cotton canvas">
+            </div>
+            
+            <div class="form-group">
+                <label><i class="fas fa-hourglass-half"></i> Creation Time</label>
+                <input type="text" name="creation_time" value="<?php echo safeHtml($artwork['creation_time']); ?>" 
+                       placeholder="e.g., 3 months, 40 hours">
+            </div>
+            
+            <div class="form-group">
+                <label><i class="fas fa-feather-alt"></i> Symbolism & Meaning</label>
+                <textarea name="symbolism" rows="3" placeholder="Explain the spiritual meaning and symbolism..."><?php echo safeHtml($artwork['symbolism']); ?></textarea>
+            </div>
+            
+            <div class="current-image">
+                <p><i class="fas fa-image"></i> Current Image:</p>
+                <img src="uploads/artworks/<?php echo safeHtml($artwork['image_path']); ?>" 
+                     alt="<?php echo safeHtml($artwork['title']); ?>">
+            </div>
+            
+            <div class="form-group">
+                <label><i class="fas fa-upload"></i> Change Image (Optional)</label>
+                <input type="file" name="artwork_image" accept="image/*">
+                <small class="file-hint"><i class="fas fa-info-circle"></i> Leave empty to keep current image. Max 5MB. JPG, PNG, GIF only.</small>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit" class="btn-primary">
+                     Update Artwork
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
-// Auto hide toast notification after 2 seconds
+// Auto hide toast notification after 3 seconds
 document.addEventListener('DOMContentLoaded', function() {
     var toast = document.querySelector('.toast-notification');
     if (toast) {
         setTimeout(function() {
-            toast.style.animation = 'fadeOut 0.3s ease forwards';
+            toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
             setTimeout(function() {
-                toast.remove();
+                if (toast && toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
             }, 300);
-        }, 2000);
+        }, 3000);
     }
 });
 </script>

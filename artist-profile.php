@@ -1,7 +1,6 @@
 <?php
-// artist-profile.php - PUBLIC PROFILE VIEW
+// artist-profile.php - PUBLIC PROFILE VIEW (WITH COMMISSION COUNT)
 require_once 'includes/config.php';
-require_once 'includes/navbar.php';
 
 $artist_id = $_GET['id'] ?? 0;
 
@@ -12,8 +11,8 @@ if (!$artist_id) {
     exit;
 }
 
-// Get artist details
-$sql = "SELECT a.*, u.username, u.full_name, u.profile_image, u.bio, u.email, u.created_at as user_since
+// Get artist details - FIXED: bio comes from artists table (a.bio), not users table
+$sql = "SELECT a.*, u.username, u.full_name, u.profile_image, u.email, u.created_at as user_since
         FROM artists a 
         JOIN users u ON a.user_id = u.user_id 
         WHERE a.artist_id = ? AND a.status = 'approved'";
@@ -30,42 +29,9 @@ if (!$artist) {
     exit;
 }
 
-// Get artist average rating from completed commissions
-$rating_sql = "SELECT AVG(satisfaction_rating) as avg_rating, COUNT(*) as total 
-               FROM commissions 
-               WHERE artist_id = ? AND payment_status = 'paid' AND satisfaction_rating IS NOT NULL";
-$stmt = mysqli_prepare($conn, $rating_sql);
-mysqli_stmt_bind_param($stmt, "i", $artist_id);
-mysqli_stmt_execute($stmt);
-$rating_result = mysqli_stmt_get_result($stmt);
-$rating_data = mysqli_fetch_assoc($rating_result);
-$avg_rating = round($rating_data['avg_rating'] ?? 0, 1);
-$total_ratings = $rating_data['total'] ?? 0;
-
-// Check if current user can rate (has completed commission with this artist)
-$can_rate = false;
-$user_rating = null;
-if (isset($_SESSION['user_id'])) {
-    // Check if user has completed a paid commission with this artist
-    $check_sql = "SELECT c.commission_id, c.satisfaction_rating 
-                  FROM commissions c
-                  WHERE c.artist_id = ? AND c.user_id = ? 
-                  AND c.payment_status = 'paid' AND c.delivery_status = 'delivered'";
-    $stmt = mysqli_prepare($conn, $check_sql);
-    mysqli_stmt_bind_param($stmt, "ii", $artist_id, $_SESSION['user_id']);
-    mysqli_stmt_execute($stmt);
-    $check_result = mysqli_stmt_get_result($stmt);
-    $commission_data = mysqli_fetch_assoc($check_result);
-    
-    if ($commission_data) {
-        $can_rate = true;
-        $user_rating = $commission_data['satisfaction_rating'];
-    }
-}
-
-// Get artist's artworks
+// Get artist's artworks with REAL likes count
 $artworks_sql = "SELECT a.*, 
-                        (SELECT COUNT(*) FROM artwork_likes WHERE artwork_id = a.artwork_id) as like_count
+                        (SELECT COUNT(*) FROM artwork_likes WHERE artwork_id = a.artwork_id) as real_like_count
                  FROM artworks a 
                  WHERE a.artist_id = ? 
                  ORDER BY a.created_at DESC";
@@ -75,10 +41,9 @@ mysqli_stmt_execute($stmt);
 $artworks_result = mysqli_stmt_get_result($stmt);
 $total_artworks = mysqli_num_rows($artworks_result);
 
-// Get total views and likes
+// Get total views and REAL likes from artwork_likes table
 $stats_sql = "SELECT 
                 SUM(views) as total_views,
-                SUM(likes) as total_likes,
                 COUNT(*) as artwork_count
               FROM artworks 
               WHERE artist_id = ?";
@@ -88,886 +53,738 @@ mysqli_stmt_execute($stmt);
 $stats_result = mysqli_stmt_get_result($stmt);
 $stats = mysqli_fetch_assoc($stats_result);
 
+// Get REAL total likes from artwork_likes table
+$likes_sql = "SELECT COUNT(*) as total_likes 
+              FROM artwork_likes al
+              JOIN artworks a ON al.artwork_id = a.artwork_id
+              WHERE a.artist_id = ?";
+$stmt = mysqli_prepare($conn, $likes_sql);
+mysqli_stmt_bind_param($stmt, "i", $artist_id);
+mysqli_stmt_execute($stmt);
+$likes_result = mysqli_stmt_get_result($stmt);
+$likes_data = mysqli_fetch_assoc($likes_result);
+$total_real_likes = $likes_data['total_likes'] ?? 0;
+
+// Get commission count
+$commission_sql = "SELECT COUNT(*) as total_commissions 
+                   FROM commissions 
+                   WHERE artist_id = ? AND (status = 'completed' OR payment_status = 'completed')";
+$stmt = mysqli_prepare($conn, $commission_sql);
+mysqli_stmt_bind_param($stmt, "i", $artist_id);
+mysqli_stmt_execute($stmt);
+$commission_result = mysqli_stmt_get_result($stmt);
+$commission_data = mysqli_fetch_assoc($commission_result);
+$total_commissions = $commission_data['total_commissions'] ?? 0;
+
 $page_title = htmlspecialchars($artist['full_name'] ?? $artist['username']) . " - Artist Profile";
 ?>
 
-<div class="artist-profile-container">
-    <!-- Breadcrumb -->
-    <nav class="breadcrumb">
-        <a href="index.php">Home</a> &gt;
-        <a href="artists.php">Artists</a> &gt;
-        <span><?php echo htmlspecialchars($artist['full_name'] ?? $artist['username']); ?></span>
-    </nav>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $page_title; ?></title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Don't override body - only style the page container */
+        .artist-profile-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            background: linear-gradient(135deg, #f9f7f1 0%, #f5f5f0 100%);
+            border-radius: 0;
+        }
 
-    <!-- Artist Header -->
-    <div class="artist-cover">
-        <div class="artist-cover-overlay"></div>
-        <div class="artist-header-content">
-            <div class="artist-avatar-large">
-                <img src="uploads/profiles/<?php echo htmlspecialchars($artist['profile_image'] ?? 'default.jpg'); ?>" 
-                     alt="<?php echo htmlspecialchars($artist['full_name'] ?? $artist['username']); ?>">
-            </div>
-            <div class="artist-header-info">
-                <h1><?php echo htmlspecialchars($artist['full_name'] ?? $artist['username']); ?></h1>
-                <p class="artist-username">@<?php echo htmlspecialchars($artist['username']); ?></p>
-                
-                <!-- ARTIST RATING (Only from completed commissions) -->
-                <div class="artist-rating">
-                    <div class="rating-stars">
-                        <?php for ($i = 1; $i <= 5; $i++): ?>
-                            <i class="fas fa-star <?php echo $i <= $avg_rating ? 'active' : ''; ?>"></i>
-                        <?php endfor; ?>
-                        <span class="rating-text">(<?php echo $total_ratings; ?> <?php echo $total_ratings == 1 ? 'review' : 'reviews'; ?>)</span>
-                    </div>
-                    <?php if ($total_ratings > 0): ?>
-                        <small class="rating-note">Based on completed commissions</small>
-                    <?php endif; ?>
-                </div>
-                
-                <div class="artist-badges">
-                    <?php if (!empty($artist['specialization'])): ?>
-                        <span class="badge specialization">
-                            <i class="fas fa-paint-brush"></i> <?php echo htmlspecialchars($artist['specialization']); ?>
-                        </span>
-                    <?php endif; ?>
-                    
-                    <?php if ($artist['experience_years'] > 0): ?>
-                        <span class="badge experience">
-                            <i class="fas fa-calendar-alt"></i> <?php echo $artist['experience_years']; ?>+ years
-                        </span>
-                    <?php endif; ?>
-                    
-                    <span class="badge member-since">
-                        <i class="fas fa-user-check"></i> Since <?php echo date('M Y', strtotime($artist['user_since'])); ?>
-                    </span>
-                </div>
-            </div>
+        /* Breadcrumb */
+        .artist-profile-container .breadcrumb {
+            margin-bottom: 2rem;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .artist-profile-container .breadcrumb a {
+            color: #666;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .artist-profile-container .breadcrumb a:hover {
+            color: #ff8c00;
+            text-decoration: underline;
+        }
+
+        .artist-profile-container .breadcrumb span {
+            color: #333;
+        }
+
+        /* Artist Cover */
+        .artist-profile-container .artist-cover {
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            background-size: 400% 400%;
+            animation: gradientShift 8s ease infinite;
+            border-radius: 30px;
+            position: relative;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .artist-profile-container .artist-header-content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            color: white;
+        }
+
+        .artist-profile-container .artist-avatar-large {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            border: 4px solid #ffd700;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            background: white;
+            animation: borderPulse 2s infinite;
+        }
+
+        @keyframes borderPulse {
+            0% { border-color: #ffd700; }
+            50% { border-color: #ff6b6b; }
+            100% { border-color: #ffd700; }
+        }
+
+        .artist-profile-container .artist-avatar-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .artist-profile-container .artist-header-info {
+            flex: 1;
+        }
+
+        .artist-profile-container .artist-header-info h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.3rem;
+            color: white;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .artist-profile-container .artist-username {
+            font-size: 1rem;
+            opacity: 0.95;
+            margin-bottom: 1rem;
+            color: rgba(255,255,255,0.95);
+        }
+
+        .artist-profile-container .artist-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+        }
+
+        .artist-profile-container .badge {
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(8px);
+            padding: 0.4rem 1.2rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .artist-profile-container .badge:nth-child(1) { background: rgba(255, 107, 107, 0.7); }
+        .artist-profile-container .badge:nth-child(2) { background: rgba(72, 219, 251, 0.7); }
+        .artist-profile-container .badge:nth-child(3) { background: rgba(255, 159, 243, 0.7); }
+
+        .artist-profile-container .badge:hover {
+            transform: translateY(-3px);
+            background: rgba(255,255,255,0.4);
+        }
+
+        .artist-profile-container .badge i {
+            color: #ffd700;
+        }
+
+        /* Commission Button */
+        .artist-profile-container .btn-commission-header {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #2c3e50;
+            padding: 0.8rem 1.8rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .artist-profile-container .btn-commission-header:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            background: linear-gradient(135deg, #ff8c00, #ffd700);
+        }
+
+        /* Stats Bar */
+        .artist-profile-container .artist-stats-bar {
+            background: white;
+            border-radius: 25px;
+            padding: 1.2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border: 1px solid #ffd700;
+        }
+
+        .artist-profile-container .stat-item {
+            text-align: center;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .artist-profile-container .stat-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .artist-profile-container .stat-value {
+            display: block;
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            line-height: 1.2;
+        }
+
+        .artist-profile-container .stat-label {
+            color: #6c5ce7;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* Profile Grid */
+        .artist-profile-container .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+        }
+
+        /* Cards */
+        .artist-profile-container .about-card,
+        .artist-profile-container .specialization-card {
+            background: white;
+            border-radius: 25px;
+            padding: 1.8rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border: 1px solid #ffd700;
+            transition: all 0.3s;
+        }
+
+        .artist-profile-container .about-card:hover,
+        .artist-profile-container .specialization-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+
+        .artist-profile-container .about-card h2,
+        .artist-profile-container .specialization-card h3 {
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .artist-profile-container .about-card h2 i,
+        .artist-profile-container .specialization-card h3 i {
+            color: #ff6b6b;
+            font-size: 1.3rem;
+        }
+
+        .artist-profile-container .artist-bio {
+            color: #2d3436;
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .artist-profile-container .no-bio {
+            color: #b2bec3;
+            font-style: italic;
+            margin-bottom: 1.5rem;
+        }
+
+        .artist-profile-container .artist-details {
+            border-top: 1px solid #ffe0d0;
+            padding-top: 1.2rem;
+        }
+
+        .artist-profile-container .detail-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 0.8rem;
+            color: #636e72;
+            font-size: 0.9rem;
+        }
+
+        .artist-profile-container .detail-row i {
+            width: 22px;
+            color: #ff6b6b;
+            font-size: 1rem;
+        }
+
+        /* Specialization Tags */
+        .artist-profile-container .specialization-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .artist-profile-container .spec-tag {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .artist-profile-container .spec-tag:nth-child(2) { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .artist-profile-container .spec-tag:nth-child(3) { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .artist-profile-container .spec-tag:nth-child(4) { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+        .artist-profile-container .spec-tag:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.1);
+        }
+
+        /* Right Column */
+        .artist-profile-container .profile-right {
+            background: white;
+            border-radius: 25px;
+            padding: 1.8rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border: 1px solid #ffd700;
+        }
+
+        .artist-profile-container .artworks-header {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .artist-profile-container .artworks-header h2 {
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .artist-profile-container .artworks-header h2 i {
+            color: #ff6b6b;
+        }
+
+        .artist-profile-container .artwork-count {
+            background: #ff6b6b;
+            color: white;
+            padding: 0.3rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* Artwork Grid */
+        .artist-profile-container .artist-artworks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .artist-profile-container .artwork-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.3s;
+            border: 1px solid #f0f0f0;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+
+        .artist-profile-container .artwork-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            border-color: #ffd700;
+        }
+
+        .artist-profile-container .artwork-image {
+            position: relative;
+            height: 180px;
+            overflow: hidden;
+        }
+
+        .artist-profile-container .artwork-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+
+        .artist-profile-container .artwork-card:hover .artwork-image img {
+            transform: scale(1.05);
+        }
+
+        .artist-profile-container .artwork-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(44, 62, 80, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .artist-profile-container .artwork-card:hover .artwork-overlay {
+            opacity: 1;
+        }
+
+        .artist-profile-container .view-btn {
+            background: #f1c40f;
+            color: black;
+            padding: 0.6rem 1.3rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .artist-profile-container .view-btn:hover {
+            color: white;
+            background-color:#ff6b6b ;
+            transform: scale(1.05);
+        }
+
+        .artist-profile-container .artwork-info {
+            padding: 1rem;
+        }
+
+        .artist-profile-container .artwork-info h3 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .artist-profile-container .artwork-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: #636e72;
+        }
+
+        .artist-profile-container .artwork-stats i {
+            color: #ff6b6b;
+            margin-right: 4px;
+        }
+
+        /* No Artworks */
+        .artist-profile-container .no-artworks {
+            text-align: center;
+            padding: 3rem;
+            color: #b2bec3;
+        }
+
+        .artist-profile-container .no-artworks i {
+            font-size: 3rem;
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .artist-profile-container .no-artworks h3 {
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        /* Specialization Card */
+        .artist-profile-container .specialization-card {
+            margin-top: 1.5rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .artist-profile-container .profile-grid {
+                grid-template-columns: 1fr;
+            }
             
-            <!-- Request Commission Button -->
-            <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] == 'user'): ?>
-                <a href="commission-request.php?artist_id=<?php echo $artist_id; ?>" class="btn-commission-header">
-                    <i class="fas fa-handshake"></i> Request Commission
-                </a>
-            <?php endif; ?>
-        </div>
-    </div>
+            .artist-profile-container .artist-header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .artist-profile-container .artist-badges {
+                justify-content: center;
+            }
+        }
 
-    <!-- Artist Stats Bar -->
-    <div class="artist-stats-bar">
-        <div class="stat-item">
-            <span class="stat-value"><?php echo $total_artworks; ?></span>
-            <span class="stat-label">Artworks</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-value"><?php echo number_format($stats['total_views'] ?? 0); ?></span>
-            <span class="stat-label">Views</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-value"><?php echo number_format($stats['total_likes'] ?? 0); ?></span>
-            <span class="stat-label">Likes</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-value"><?php echo $total_ratings; ?></span>
-            <span class="stat-label">Ratings</span>
-        </div>
-    </div>
+        @media (max-width: 768px) {
+            .artist-profile-container {
+                padding: 1rem;
+            }
+            
+            .artist-profile-container .artist-cover {
+                padding: 1.5rem;
+            }
+            
+            .artist-profile-container .artist-header-info h1 {
+                font-size: 1.6rem;
+            }
+            
+            .artist-profile-container .artist-stats-bar {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            
+            .artist-profile-container .artist-artworks-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 1rem;
+            }
+        }
 
-    <!-- Rate This Artist Section (Only for users who completed a commission) -->
-    <?php if ($can_rate && !$user_rating): ?>
-        <div class="rate-artist-section">
-            <h3><i class="fas fa-star"></i> Rate Your Experience</h3>
-            <p>You commissioned <?php echo htmlspecialchars($artist['full_name'] ?? $artist['username']); ?>. How was your experience?</p>
-            <div class="rating-input">
-                <span class="rating-label">Your rating:</span>
-                <div class="rating-stars-input">
-                    <?php for ($i = 1; $i <= 5; $i++): ?>
-                        <i class="fas fa-star rate-star" data-rating="<?php echo $i; ?>"></i>
-                    <?php endfor; ?>
+        @media (max-width: 480px) {
+            .artist-profile-container .artist-artworks-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .artist-profile-container .btn-commission-header {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .artist-profile-container .artworks-header {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <?php require_once 'includes/navbar.php'; ?>
+
+    <div class="artist-profile-container">
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb">
+            <a href="index.php"><i class="fas fa-home"></i> Home</a>
+            <i class="fas fa-chevron-right"></i>
+            <a href="artists.php"><i class="fas fa-paint-brush"></i> Artists</a>
+            <i class="fas fa-chevron-right"></i>
+            <span><i class="fas fa-user-circle"></i> <?php echo htmlspecialchars($artist['full_name'] ?? $artist['username']); ?></span>
+        </nav>
+
+        <!-- Artist Header with Animated Gradient -->
+        <div class="artist-cover">
+            <div class="artist-header-content">
+                <div class="artist-avatar-large">
+                    <img src="uploads/profiles/<?php echo htmlspecialchars($artist['profile_image'] ?? 'default.jpg'); ?>" 
+                         alt="<?php echo htmlspecialchars($artist['full_name'] ?? $artist['username']); ?>">
                 </div>
-                <form id="rating-form" method="POST" action="ajax/rate-artist.php" style="display: none;">
-                    <input type="hidden" name="artist_id" value="<?php echo $artist_id; ?>">
-                    <input type="hidden" name="rating" id="selected-rating" value="">
-                    <input type="hidden" name="commission_id" value="<?php echo $commission_data['commission_id'] ?? ''; ?>">
-                </form>
-            </div>
-        </div>
-    <?php elseif ($user_rating): ?>
-        <div class="rate-artist-section rated">
-            <h3><i class="fas fa-star"></i> Your Rating</h3>
-            <div class="rating-stars">
-                <?php for ($i = 1; $i <= 5; $i++): ?>
-                    <i class="fas fa-star <?php echo $i <= $user_rating ? 'active' : ''; ?>"></i>
-                <?php endfor; ?>
-                <span class="rating-text">Thank you for your feedback!</span>
-            </div>
-        </div>
-    <?php endif; ?>
-
-    <!-- Main Content Grid -->
-    <div class="profile-grid">
-        <!-- Left Column - About Section -->
-        <div class="profile-left">
-            <div class="about-card">
-                <h2><i class="fas fa-user-circle"></i> About the Artist</h2>
+                <div class="artist-header-info">
+                    <h1><?php echo htmlspecialchars($artist['full_name'] ?? $artist['username']); ?></h1>
+                    <p class="artist-username">✨ @<?php echo htmlspecialchars($artist['username']); ?> ✨</p>
+                    
+                    <div class="artist-badges">
+                        <?php if (!empty($artist['specialization'])): ?>
+                            <span class="badge">
+                                <i class="fas fa-paint-brush"></i> <?php echo htmlspecialchars($artist['specialization']); ?>
+                            </span>
+                        <?php endif; ?>
+                        
+                        <?php if ($artist['experience_years'] > 0): ?>
+                            <span class="badge">
+                                <i class="fas fa-calendar-alt"></i> <?php echo $artist['experience_years']; ?>+ years
+                            </span>
+                        <?php endif; ?>
+                        
+                        <span class="badge">
+                            <i class="fas fa-heart"></i> Member since <?php echo date('M Y', strtotime($artist['user_since'])); ?>
+                        </span>
+                    </div>
+                </div>
                 
-                <?php if (!empty($artist['bio'])): ?>
-                    <div class="artist-bio">
-                        <?php echo nl2br(htmlspecialchars($artist['bio'])); ?>
+                <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] == 'user'): ?>
+                    <a href="commission-request.php?artist_id=<?php echo $artist_id; ?>" class="btn-commission-header">
+                        <i class="fas fa-handshake"></i> Request Custom Artworks ✨
+                    </a>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="artist-stats-bar">
+            <div class="stat-item">
+                <span class="stat-value"><?php echo $total_artworks; ?></span>
+                <span class="stat-label">Artworks</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value"><?php echo number_format($stats['total_views'] ?? 0); ?></span>
+                <span class="stat-label">Views</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value"><?php echo number_format($total_real_likes); ?></span>
+                <span class="stat-label">Likes</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value"><?php echo $total_commissions; ?></span>
+                <span class="stat-label">Completed Projects</span>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="profile-grid">
+            <!-- Left Column -->
+            <div class="profile-left">
+                <div class="about-card">
+                    <h2><i class="fas fa-user-circle"></i> About the Artist</h2>
+                    
+                    <!-- FIXED: Using a.bio from artists table -->
+                    <?php if (!empty($artist['bio'])): ?>
+                        <div class="artist-bio">
+                            <?php echo nl2br(htmlspecialchars($artist['bio'])); ?>
+                        </div>
+                    <?php else: ?>
+                        <p class="no-bio">This artist hasn't added a biography yet. Stay tuned!</p>
+                    <?php endif; ?>
+
+                    <div class="artist-details">
+                        <?php if (!empty($artist['contact_info'])): ?>
+                            <div class="detail-row">
+                                <i class="fas fa-phone-alt"></i>
+                                <span><?php echo htmlspecialchars($artist['contact_info']); ?></span>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($artist['email']) && isset($_SESSION['user_id'])): ?>
+                            <div class="detail-row">
+                                <i class="fas fa-envelope"></i>
+                                <span><?php echo htmlspecialchars($artist['email']); ?></span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div class="specialization-card">
+                    <h3><i class="fas fa-star"></i> Specialization</h3>
+                    <div class="specialization-tags">
+                        <?php
+                        $specializations = explode(',', $artist['specialization'] ?? 'Traditional Art');
+                        foreach ($specializations as $spec) {
+                            echo '<span class="spec-tag">' . htmlspecialchars(trim($spec)) . '</span>';
+                        }
+                        ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Artworks Gallery -->
+            <div class="profile-right">
+                <div class="artworks-header">
+                    <h2>🎨 Artworks Gallery</h2>
+                    <?php if ($total_artworks > 0): ?>
+                        <p class="artwork-count"><?php echo $total_artworks; ?> artwork<?php echo $total_artworks > 1 ? 's' : ''; ?></p>
+                    <?php endif; ?>
+                </div>
+
+                <?php if ($total_artworks > 0): ?>
+                    <div class="artist-artworks-grid">
+                        <?php while ($artwork = mysqli_fetch_assoc($artworks_result)): ?>
+                            <div class="artwork-card">
+                                <div class="artwork-image">
+                                    <img src="uploads/artworks/<?php echo htmlspecialchars($artwork['image_path']); ?>" 
+                                         alt="<?php echo htmlspecialchars($artwork['title']); ?>">
+                                    <div class="artwork-overlay">
+                                        <a href="artwork-detail.php?id=<?php echo $artwork['artwork_id']; ?>" class="view-btn">
+                                            </i> View
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="artwork-info">
+                                    <h3><?php echo htmlspecialchars($artwork['title']); ?></h3>
+                                    <div class="artwork-stats">
+                                        <span title="Views">
+                                            <i class="fas fa-eye"></i> <?php echo number_format($artwork['views']); ?>
+                                        </span>
+                                        <span title="Likes">
+                                            <i class="fas fa-heart"></i> <?php echo number_format($artwork['real_like_count'] ?? $artwork['likes']); ?>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endwhile; ?>
                     </div>
                 <?php else: ?>
-                    <p class="no-bio">The artist hasn't added a biography yet.</p>
-                <?php endif; ?>
-
-                <div class="artist-details">
-                    <?php if (!empty($artist['contact_info'])): ?>
-                        <div class="detail-row">
-                            <i class="fas fa-phone-alt"></i>
-                            <span><?php echo htmlspecialchars($artist['contact_info']); ?></span>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php if (!empty($artist['email']) && isset($_SESSION['user_id'])): ?>
-                        <div class="detail-row">
-                            <i class="fas fa-envelope"></i>
-                            <span><?php echo htmlspecialchars($artist['email']); ?></span>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Specialization Card -->
-            <div class="specialization-card">
-                <h3><i class="fas fa-star"></i> Specialization</h3>
-                <div class="specialization-tags">
-                    <?php
-                    $specializations = explode(',', $artist['specialization'] ?? 'Traditional Art');
-                    foreach ($specializations as $spec) {
-                        echo '<span class="spec-tag">' . htmlspecialchars(trim($spec)) . '</span>';
-                    }
-                    ?>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right Column - Artworks Gallery -->
-        <div class="profile-right">
-            <div class="artworks-header">
-                <h2><i class="fas fa-palette"></i> Artworks</h2>
-                <?php if ($total_artworks > 0): ?>
-                    <p class="artwork-count"><?php echo $total_artworks; ?> artwork<?php echo $total_artworks > 1 ? 's' : ''; ?></p>
+                    <div class="no-artworks">
+                        <i class="fas fa-palette"></i>
+                        <h3>No Artworks Yet</h3>
+                        <p>This artist hasn't uploaded any artworks yet. Check back soon!</p>
+                    </div>
                 <?php endif; ?>
             </div>
-
-            <?php if ($total_artworks > 0): ?>
-                <div class="artist-artworks-grid">
-                    <?php while ($artwork = mysqli_fetch_assoc($artworks_result)): ?>
-                        <div class="artwork-card">
-                            <div class="artwork-image">
-                                <img src="uploads/artworks/<?php echo htmlspecialchars($artwork['image_path']); ?>" 
-                                     alt="<?php echo htmlspecialchars($artwork['title']); ?>">
-                                <div class="artwork-overlay">
-                                    <a href="artwork-detail.php?id=<?php echo $artwork['artwork_id']; ?>" class="view-btn">
-                                        <i class="fas fa-eye"></i> View
-                                    </a>
-                                </div>
-                            </div>
-                            <div class="artwork-info">
-                                <h3><?php echo htmlspecialchars($artwork['title']); ?></h3>
-                                <div class="artwork-stats">
-                                    <span class="stat" title="Views">
-                                        <i class="fas fa-eye"></i> <?php echo number_format($artwork['views']); ?>
-                                    </span>
-                                    <span class="stat" title="Likes">
-                                        <i class="fas fa-heart"></i> <?php echo number_format($artwork['like_count'] ?? $artwork['likes']); ?>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endwhile; ?>
-                </div>
-            <?php else: ?>
-                <div class="no-artworks">
-                    <i class="fas fa-palette"></i>
-                    <h3>No Artworks Yet</h3>
-                    <p>This artist hasn't uploaded any artworks yet. Check back soon!</p>
-                </div>
-            <?php endif; ?>
         </div>
     </div>
-</div>
 
-<script>
-// Star rating functionality
-document.querySelectorAll('.rate-star').forEach(star => {
-    star.addEventListener('click', function() {
-        const rating = this.dataset.rating;
-        document.getElementById('selected-rating').value = rating;
-        
-        // Update stars visually
-        document.querySelectorAll('.rate-star').forEach((s, index) => {
-            if (index < rating) {
-                s.classList.add('active');
-            } else {
-                s.classList.remove('active');
-            }
-        });
-        
-        // Submit the form
-        document.getElementById('rating-form').submit();
-    });
-});
-</script>
-
-<style>
-/* Rating Styles */
-.artist-rating {
-    margin: 0.5rem 0 1rem 0;
-}
-
-.rating-stars {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.rating-stars i {
-    color: #ddd;
-    font-size: 1.2rem;
-}
-
-.rating-stars i.active {
-    color: #ffc107;
-}
-
-.rating-text {
-    color: rgba(255,255,255,0.9);
-    font-size: 0.9rem;
-    margin-left: 10px;
-}
-
-.rating-note {
-    display: block;
-    font-size: 0.75rem;
-    opacity: 0.7;
-    margin-top: 4px;
-}
-
-.rate-artist-section {
-    background: white;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-}
-
-.rate-artist-section.rated {
-    background: #e8f5e9;
-    border-left: 4px solid #4caf50;
-}
-
-.rate-artist-section h3 {
-    color: var(--primary-color);
-    margin-bottom: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.rate-artist-section p {
-    color: #666;
-    margin-bottom: 1rem;
-}
-
-.rating-input {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-}
-
-.rating-label {
-    font-weight: 600;
-    color: var(--primary-color);
-}
-
-.rating-stars-input {
-    display: flex;
-    gap: 10px;
-}
-
-.rate-star {
-    font-size: 1.8rem;
-    color: #ddd;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.rate-star:hover,
-.rate-star.active {
-    color: #ffc107;
-    transform: scale(1.1);
-}
-
-
-
-.rating-stars {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.rating-stars i {
-    color: #ddd;
-    font-size: 1.2rem;
-}
-
-.rating-stars i.active {
-    color: #ffc107;
-}
-
-.rating-text {
-    color: rgba(255,255,255,0.9);
-    font-size: 0.9rem;
-    margin-left: 10px;
-}
-
-.rate-artist-section {
-    background: white;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-}
-
-.rate-artist-section h3 {
-    color: var(--primary-color);
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.rating-input {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-}
-
-.rating-label {
-    font-weight: 600;
-    color: var(--primary-color);
-}
-
-.rating-stars-input {
-    display: flex;
-    gap: 10px;
-}
-
-.rate-star {
-    font-size: 1.8rem;
-    color: #ddd;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.rate-star:hover,
-.rate-star.active {
-    color: #ffc107;
-    transform: scale(1.1);
-}
-
-.your-rating {
-    color: #666;
-    font-style: italic;
-}
-
-.artwork-rating-small {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    margin: 0.5rem 0;
-}
-
-.artwork-rating-small i {
-    color: #ddd;
-    font-size: 0.9rem;
-}
-
-.artwork-rating-small i.active {
-    color: #ffc107;
-}
-
-.artwork-rating-small span {
-    color: #666;
-    font-size: 0.8rem;
-    margin-left: 5px;
-}
-
-.artist-profile-container {
-    padding: 2rem 0;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.breadcrumb {
-    margin-bottom: 2rem;
-    color: #666;
-    font-size: 0.9rem;
-}
-
-.breadcrumb a {
-    color: var(--secondary-color);
-    text-decoration: none;
-}
-
-.breadcrumb a:hover {
-    text-decoration: underline;
-}
-
-/* Artist Cover */
-.artist-cover {
-    background: linear-gradient(135deg, var(--primary-color), #4a6491);
-    border-radius: 15px 15px 0 0;
-    position: relative;
-    padding: 3rem 2rem;
-    margin-bottom: 2rem;
-    overflow: hidden;
-}
-
-.artist-cover-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.1"><path d="M50 15 L61 40 L88 44 L67 62 L72 90 L50 76 L28 90 L33 62 L12 44 L39 40 Z" fill="white"/></svg>');
-    background-size: 100px;
-    opacity: 0.1;
-}
-
-.artist-header-content {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-    flex-wrap: wrap;
-    color: white;
-}
-
-.artist-avatar-large {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    border: 4px solid var(--accent-color);
-    overflow: hidden;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-}
-
-.artist-avatar-large img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.artist-header-info {
-    flex: 1;
-}
-
-.artist-header-info h1 {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-    color: white;
-}
-
-.artist-username {
-    font-size: 1.1rem;
-    opacity: 0.9;
-    margin-bottom: 1rem;
-    color: rgba(255,255,255,0.9);
-}
-
-.artist-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.8rem;
-}
-
-.badge {
-    background: rgba(255,255,255,0.2);
-    padding: 0.4rem 1rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    backdrop-filter: blur(5px);
-}
-
-.badge i {
-    color: var(--accent-color);
-}
-
-.btn-commission-header {
-    background: var(--accent-color);
-    color: var(--dark-color);
-    padding: 1rem 2rem;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    transition: all 0.3s;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-.btn-commission-header:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.3);
-    background: #e6b800;
-}
-
-/* Stats Bar */
-.artist-stats-bar {
-    background: white;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    display: flex;
-    justify-content: space-around;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-}
-
-.stat-item {
-    text-align: center;
-}
-
-.stat-value {
-    display: block;
-    font-size: 2rem;
-    font-weight: bold;
-    color: var(--primary-color);
-    line-height: 1.2;
-}
-
-.stat-label {
-    color: #666;
-    font-size: 0.9rem;
-}
-
-/* Profile Grid */
-.profile-grid {
-    display: grid;
-    grid-template-columns: 1fr 2fr;
-    gap: 2rem;
-}
-
-/* Left Column */
-.profile-left {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.about-card, .specialization-card {
-    background: white;
-    border-radius: 10px;
-    padding: 1.5rem;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-}
-
-.about-card h2, .specialization-card h3 {
-    color: var(--primary-color);
-    margin-bottom: 1.2rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 1.2rem;
-}
-
-.artist-bio {
-    color: #444;
-    line-height: 1.6;
-    margin-bottom: 1.5rem;
-}
-
-.no-bio {
-    color: #999;
-    font-style: italic;
-    margin-bottom: 1.5rem;
-}
-
-.artist-details {
-    border-top: 1px solid #eee;
-    padding-top: 1.5rem;
-}
-
-.detail-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 1rem;
-    color: #666;
-}
-
-.detail-row i {
-    width: 20px;
-    color: var(--secondary-color);
-}
-
-.detail-row a {
-    color: var(--info-color);
-    text-decoration: none;
-}
-
-.detail-row a:hover {
-    text-decoration: underline;
-}
-
-.specialization-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.spec-tag {
-    background: #e8f4fc;
-    color: var(--info-color);
-    padding: 0.4rem 1rem;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-/* Right Column - Artworks */
-.profile-right {
-    background: white;
-    border-radius: 10px;
-    padding: 1.5rem;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-}
-
-.artworks-header {
-    margin-bottom: 2rem;
-}
-
-.artworks-header h2 {
-    color: var(--primary-color);
-    margin-bottom: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.artwork-count {
-    color: #666;
-    font-size: 0.95rem;
-}
-
-.artist-artworks-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.5rem;
-}
-
-.artwork-card {
-    background: white;
-    border: 1px solid #eee;
-    border-radius: 10px;
-    overflow: hidden;
-    transition: all 0.3s;
-}
-
-.artwork-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-}
-
-.artwork-image {
-    position: relative;
-    height: 180px;
-    overflow: hidden;
-}
-
-.artwork-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.5s;
-}
-
-.artwork-card:hover .artwork-image img {
-    transform: scale(1.05);
-}
-
-.artwork-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.artwork-card:hover .artwork-overlay {
-    opacity: 1;
-}
-.artist-rating {
-    margin: 0.5rem 0 1rem 0;
-}
-.view-btn {
-    background: var(--accent-color);
-    color: var(--dark-color);
-    padding: 0.8rem 1.5rem;
-    border-radius: 5px;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.3s;
-}
-
-.view-btn:hover {
-    background: #e6b800;
-    transform: scale(1.05);
-}
-
-.artwork-category-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(44, 62, 80, 0.9);
-    color: white;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.artwork-info {
-    padding: 1rem;
-}
-
-.artwork-info h3 {
-    color: var(--primary-color);
-    margin-bottom: 0.5rem;
-    font-size: 1rem;
-    line-height: 1.3;
-}
-
-.artwork-meta {
-    margin-bottom: 0.5rem;
-}
-
-.artwork-date {
-    color: #888;
-    font-size: 0.8rem;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.artwork-stats {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.8rem;
-    color: #888;
-}
-
-.artwork-stats i {
-    color: var(--secondary-color);
-    margin-right: 3px;
-}
-
-.artwork-materials {
-    color: #666;
-    font-size: 0.8rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.artwork-materials i {
-    color: var(--info-color);
-    margin-right: 5px;
-}
-
-/* No Artworks */
-.no-artworks {
-    text-align: center;
-    padding: 3rem;
-    color: #666;
-}
-
-.no-artworks i {
-    font-size: 3rem;
-    color: #ddd;
-    margin-bottom: 1rem;
-}
-
-.no-artworks h3 {
-    color: var(--primary-color);
-    margin-bottom: 0.5rem;
-}
-
-.no-artworks p {
-    margin-bottom: 1.5rem;
-}
-
-/* Responsive */
-@media (max-width: 992px) {
-    .profile-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .artist-header-content {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .artist-badges {
-        justify-content: center;
-    }
-}
-
-@media (max-width: 768px) {
-    .artist-cover {
-        padding: 2rem 1rem;
-    }
-    
-    .artist-header-info h1 {
-        font-size: 2rem;
-    }
-    
-    .artist-stats-bar {
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    
-    .artist-artworks-grid {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    }
-}
-
-@media (max-width: 480px) {
-    .artist-artworks-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .btn-commission-header {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-
-/* Keep all the existing CSS from your file */
-</style>
-
-<?php require_once 'includes/footer.php'; ?>
+    <?php require_once 'includes/footer.php'; ?>
+</body>
+</html>

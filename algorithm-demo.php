@@ -48,9 +48,7 @@ $recommender = new ArtworkRecommender($conn);
         <h3 style="margin-top: 2rem;">Algorithm Types Implemented:</h3>
         <ol style="margin-left: 1.5rem;">
             <li><strong>Popularity-based:</strong> Most viewed/liked artworks</li>
-            <li><strong>Trending:</strong> Recently popular with time decay</li>
-            <li><strong>Personalized:</strong> Based on user preferences</li>
-            <li><strong>Similar items:</strong> Content-based filtering</li>
+            
         </ol>
     </div>
     
@@ -98,71 +96,8 @@ $recommender = new ArtworkRecommender($conn);
             </div>
         </div>
         
-        <!-- Trending Artworks -->
-        <div class="algorithm-section" style="margin: 2rem 0;">
-            <h3><i class="fas fa-bolt"></i> Trending Artworks (Algorithm 2)</h3>
-            <p>Recent popularity with time decay factor (last 30 days × 1.5 bonus)</p>
-            
-            <div class="artworks-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
-                <?php
-                $trending_artworks = $recommender->getTrendingArtworks(6);
-                
-                if (count($trending_artworks) > 0) {
-                    foreach ($trending_artworks as $artwork) {
-                        echo '<div class="artwork-card" style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
-                                <div style="height: 150px; overflow: hidden;">
-                                    <img src="uploads/artworks/' . $artwork['image_path'] . '" 
-                                         alt="' . htmlspecialchars($artwork['title']) . '"
-                                         style="width: 100%; height: 100%; object-fit: cover;">
-                                </div>
-                                <div style="padding: 1rem;">
-                                    <h4 style="margin-bottom: 0.5rem;">' . htmlspecialchars($artwork['title']) . '</h4>
-                                    <p style="color: #666; font-size: 0.9rem; margin-bottom: 0.5rem;">
-                                        By: ' . htmlspecialchars($artwork['artist_name'] ?? $artwork['username']) . '
-                                    </p>
-                                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-radius: 5px;">
-                                        <small><strong>Trending Score:</strong> ' . round($artwork['trending_score'], 2) . '</small>
-                                    </div>
-                                </div>
-                              </div>';
-                    }
-                }
-                ?>
-            </div>
-        </div>
+      
         
-        <!-- Personalized Recommendations -->
-        <?php if (isset($_SESSION['user_id'])): ?>
-        <div class="algorithm-section" style="margin: 2rem 0;">
-            <h3><i class="fas fa-user-check"></i> Personalized Recommendations (Algorithm 3)</h3>
-            <p>Based on your liked categories and similar users</p>
-            
-            <div class="artworks-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
-                <?php
-                $user_id = $_SESSION['user_id'];
-                $personalized = $recommender->getPersonalizedRecommendations($user_id, 6);
-                
-                if (count($personalized) > 0) {
-                    foreach ($personalized as $artwork) {
-                        echo '<div class="artwork-card" style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 3px 10px rgba(0,0,0,0.1);">
-                                <div style="height: 150px; overflow: hidden;">
-                                    <img src="uploads/artworks/' . $artwork['image_path'] . '" 
-                                         alt="' . htmlspecialchars($artwork['title']) . '"
-                                         style="width: 100%; height: 100%; object-fit: cover;">
-                                </div>
-                                <div style="padding: 1rem;">
-                                    <h4 style="margin-bottom: 0.5rem;">' . htmlspecialchars($artwork['title']) . '</h4>
-                                    <p style="color: #666; font-size: 0.9rem;">
-                                        By: ' . htmlspecialchars($artwork['artist_name'] ?? $artwork['username']) . '
-                                    </p>
-                                </div>
-                              </div>';
-                    }
-                }
-                ?>
-            </div>
-        </div>
-        <?php endif; ?>
         
         <!-- Algorithm Visualization -->
         <div class="visualization" style="background: white; padding: 2rem; border-radius: 10px; margin: 2rem 0;">

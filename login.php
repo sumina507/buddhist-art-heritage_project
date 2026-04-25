@@ -9,230 +9,420 @@ if (isset($_SESSION['user_id'])) {
     exit;
 }
 ?>
-<div class="container auth-container">
-    <div class="auth-card">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Buddhist Art Heritage</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <?php require_once 'includes/navbar.php'; ?>
 
-        <div class="auth-header">
-            <h1>Login</h1>
-            <p>Welcome back to the platform</p>
-        </div>
-
-        <?php if (isset($_SESSION['errors'])): ?>
-            <div class="alert alert-error">
-                <?php 
-                foreach ($_SESSION['errors'] as $error) {
-                    echo htmlspecialchars($error) . "<br>";
-                }
-                unset($_SESSION['errors']);
-                ?>
-                <button class="alert-close">&times;</button>
-            </div>
-        <?php endif; ?>
-
-        <?php if (isset($_GET['registered'])): ?>
-            <div class="alert alert-success">
-                Registration successful! You can now login.
-                <button class="alert-close">&times;</button>
-            </div>
-        <?php endif; ?>
-
-        <form action="process-login.php" method="POST" class="auth-form">
-
-            <div class="form-group">
-                <label>Username or Email</label>
-                <input type="text" name="username" required>
-            </div>
-
-            <div class="form-group">
-                <label>Password</label>
-
-                <div class="password-wrapper">
-                    <input type="password" id="password" name="password" required>
-                    <button type="button" class="toggle-password" data-target="password">Show</button>
+    <div class="auth-wrapper">
+        <div class="auth-container">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <div class="logo-icon">
+                        <i class="fas fa-lotus"></i>
+                    </div>
+                    <h1>Welcome Back</h1>
                 </div>
-            </div>
 
-            <button type="submit" class="btn-primary">
-                Login
-            </button>
+                <?php if (isset($_SESSION['errors'])): ?>
+                    <div class="alert alert-error">
+                        <?php 
+                        foreach ($_SESSION['errors'] as $error) {
+                            echo htmlspecialchars($error) . "<br>";
+                        }
+                        unset($_SESSION['errors']);
+                        ?>
+                        <button class="alert-close">&times;</button>
+                    </div>
+                <?php endif; ?>
 
-            <div class="auth-footer">
-                <p>Don't have an account? <a href="register.php">Register</a></p>
-            </div>
+                <?php if (isset($_GET['registered'])): ?>
+                    <div class="alert alert-success">
+                        Registration successful! You can now login.
+                        <button class="alert-close">&times;</button>
+                    </div>
+                <?php endif; ?>
 
-        </form>
-    </div>
+                <form id="loginForm" action="process-login.php" method="POST" class="auth-form" novalidate>
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Username or Email</label>
+                        <input type="text" id="username" name="username" placeholder="Enter your username or email">
+                        <small id="usernameError" class="error-text">Please enter your username or email</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                       <div class="password-wrapper">
+    <input type="password" id="password" name="password" placeholder="Enter your password">
+    <button type="button" class="toggle-password" data-target="password">
+        
+    </button>
 </div>
-<?php require_once 'includes/footer.php'; ?>
+                        <small id="passwordError" class="error-text">Please enter your password</small>
+                    </div>
 
-<style>
-/body{
-    background:#f7f4ff;
-}
+                    <button type="submit" class="btn-primary">
+                         Login
+                    </button>
 
-/* Container */
-.auth-container{
-    min-height:85vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-}
+                    <div class="auth-footer">
+                        <p>Don't have an account? <a href="register.php">Create Account</a></p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-/* Card */
-.auth-card{
-    background:white;
-    padding:2.5rem;
-    border-radius:18px;
-    box-shadow:0 8px 25px rgba(0,0,0,0.08);
-    max-width:520px;
-    width:100%;
-}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-/* Header */
-.auth-header{
-    text-align:center;
-    margin-bottom:2rem;
-}
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f5f0;
+            min-height: 100vh;
+        }
 
-.auth-header h1{
-    color:#5a4fcf;
-}
+        .auth-wrapper {
+            min-height: 85vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+            background: url('https://media.app.happylandtreks.com/uploads/media/thangka-painting-art-shop-in-kathmandu-nepal.webp') no-repeat center center;
+            background-size: cover;
+            margin: 1rem;
+            border-radius: 24px;
+        }
 
-.auth-header p{
-    color:#777;
-}
+        .auth-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(241, 196, 15, 0.15), rgba(231, 76, 60, 0.1));
+            border-radius: 24px;
+            z-index: 0;
+        }
 
-/* Form */
-.form-group{
-    margin-bottom:1.3rem;
-}
+        .auth-card {
+            position: relative;
+            z-index: 1;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(2px);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 450px;
+            width: 100%;
+            border: 1px solid rgba(241, 196, 15, 0.3);
+            transition: transform 0.3s;
+        }
 
-label{
-    display:block;
-    margin-bottom:6px;
-    font-size:0.9rem;
-    color:#555;
-}
+        .auth-card:hover {
+            transform: translateY(-5px);
+        }
 
-/* Inputs */
-input{
-    width:100%;
-    padding:0.85rem 1rem;
-    border:1.5px solid #e3e3e3;
-    border-radius:12px;
-    background:#fafaff;
-    transition:0.3s;
-}
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
 
-input:focus{
-    border-color:#a78bfa;
-    background:white;
-    box-shadow:0 0 0 3px rgba(167,139,250,0.15);
-    outline:none;
-}
+        .logo-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #e74c3c, #f1c40f);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            box-shadow: 0 10px 20px rgba(231, 76, 60, 0.2);
+        }
 
-/* Password */
-.password-wrapper{
-    position:relative;
-}
+        .logo-icon i {
+            font-size: 2rem;
+            color: white;
+        }
 
-.toggle-password{
-    position:absolute;
-    right:10px;
-    top:50%;
-    transform:translateY(-50%);
-    border:none;
-    background:none;
-    cursor:pointer;
-    font-size:0.8rem;
-    color:#777;
-}
+        .auth-header h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
 
-/* Button */
-.btn-primary{
-    width:100%;
-    padding:0.9rem;
-    border:none;
-    border-radius:14px;
-    background:#a78bfa;
-    color:white;
-    font-weight:600;
-    cursor:pointer;
-    display:flex;
-    justify-content:center;
-    transition:0.3s;
-}
+        .auth-header p {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
 
-.btn-primary:hover{
-    background:#8b77f6;
-    transform:translateY(-2px);
-}
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
 
-/* Footer */
-.auth-footer{
-    text-align:center;
-    margin-top:1.5rem;
-    font-size:0.9rem;
-}
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
 
-.auth-footer a{
-    color:#8b77f6;
-    text-decoration:none;
-}
+        label i {
+            color: #e74c3c;
+            margin-right: 6px;
+            width: 18px;
+        }
 
-/* Alerts */
-.alert{
-    border-radius:10px;
-    padding:0.8rem 1rem;
-    margin-bottom:1rem;
-    font-size:0.9rem;
-    display:flex;
-    justify-content:space-between;
-}
+        input {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border: 1.5px solid #e9ecef;
+            border-radius: 12px;
+            background: white;
+            color: #2c3e50;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
 
-.alert-error{
-    background:#ff4d4d;
-    color:white;
-}
+        input:focus {
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+            outline: none;
+        }
 
-.alert-success{
-    background:#27ae60;
-    color:white;
-}
+        input.error {
+            border-color: #e74c3c;
+            background: #fef5f4;
+        }
 
-.alert-close{
-    background:none;
-    border:none;
-    color:white;
-    cursor:pointer;
-}
-</style>
+        .error-text {
+            color: #e74c3c;
+            display: none;
+            font-size: 0.7rem;
+            margin-top: 5px;
+        }
 
-<script>
+        .error-text.show {
+            display: block;
+        }
 
-    document.querySelectorAll('.toggle-password').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-        let input=document.getElementById(btn.dataset.target);
+        .password-wrapper {
+            position: relative;
+        }
 
-        if(input.type==="password"){
-            input.type="text";
-            btn.textContent="Hide";
-        }else{
-            input.type="password";
-            btn.textContent="Show";
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 0.75rem;
+            color: #6c757d;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .toggle-password:hover {
+            background: #f0f0f0;
+            color: #e74c3c;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 0.9rem;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 0.5rem;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(231, 76, 60, 0.3);
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 1.8rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .auth-footer p {
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+
+        .auth-footer a {
+            color: #e74c3c;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+
+        .auth-footer a:hover {
+            color: #c0392b;
+            text-decoration: underline;
+        }
+
+        .alert {
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .alert-error {
+            background: #fef5f4;
+            color: #e74c3c;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-close {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-size: 1.2rem;
+            opacity: 0.7;
+            padding: 0 4px;
+        }
+
+        .alert-close:hover {
+            opacity: 1;
+        }
+
+        @media (max-width: 576px) {
+            .auth-wrapper {
+                margin: 0.5rem;
+                padding: 1rem;
+            }
+            
+            .auth-card {
+                padding: 1.8rem;
+            }
+            
+            .logo-icon {
+                width: 55px;
+                height: 55px;
+            }
+            
+            .logo-icon i {
+                font-size: 1.5rem;
+            }
+            
+            .auth-header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+
+    <script>
+   document.querySelectorAll('.toggle-password').forEach(btn => {
+    btn.addEventListener('click', () => {
+        let input = document.getElementById(btn.dataset.target);
+        let icon = btn.querySelector('i');
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = "password";
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
         }
     });
 });
 
-document.querySelectorAll('.alert-close').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-        btn.parentElement.style.display="none";
-    });
-});
-document.addEventListener('DOMContentLoaded', function() {
-    // Close alert
-    document.querySelectorAll('.alert-close').forEach(btn => {
-        btn.addEventListener('click', () => btn.parentElement.style.display = 'none');
-    });
-});
-</script>
+        // Close alerts
+        document.querySelectorAll('.alert-close').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.parentElement.style.display = "none";
+            });
+        });
+
+        // Clear error on typing
+        document.getElementById('username').addEventListener('input', function() {
+            if (this.value.trim() !== "") {
+                this.classList.remove('error');
+                document.getElementById('usernameError').classList.remove('show');
+            }
+        });
+
+        document.getElementById('password').addEventListener('input', function() {
+            if (this.value.trim() !== "") {
+                this.classList.remove('error');
+                document.getElementById('passwordError').classList.remove('show');
+            }
+        });
+
+        // Form validation
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            let isValid = true;
+            
+            // Username validation
+            const username = document.getElementById('username').value.trim();
+            if (username === "") {
+                document.getElementById('username').classList.add('error');
+                document.getElementById('usernameError').classList.add('show');
+                isValid = false;
+            } else {
+                document.getElementById('username').classList.remove('error');
+                document.getElementById('usernameError').classList.remove('show');
+            }
+            
+            // Password validation
+            const password = document.getElementById('password').value.trim();
+            if (password === "") {
+                document.getElementById('password').classList.add('error');
+                document.getElementById('passwordError').classList.add('show');
+                isValid = false;
+            } else {
+                document.getElementById('password').classList.remove('error');
+                document.getElementById('passwordError').classList.remove('show');
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+    </script>
+
+    <?php require_once 'includes/footer.php'; ?>
+</body>
+</html>

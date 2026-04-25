@@ -3,10 +3,10 @@
 session_start();
 
 // Database configuration
-define('DB_HOST', 'localhost:3306');  // Add the port number
+define('DB_HOST', 'localhost:3307');  // Add the port number
 define('DB_USER', 'root');
 define('DB_PASS', '');
-define('DB_NAME', 'sumina');
+define('DB_NAME', 'sumina_db');
 
 // Create connection
 $conn = mysqli_connect(DB_HOST, DB_USER, DB_PASS, DB_NAME);
@@ -16,7 +16,7 @@ if (!$conn) {
     die("Connection failed: " . mysqli_connect_error());
 }
 
-define('SITE_URL', 'http://localhost/buddhist-art-project/');// Upload paths - IMPORTANT!
+define('SITE_URL', 'http://localhost/buddhist-art-project/');
 define('UPLOAD_PATH', $_SERVER['DOCUMENT_ROOT'] . '/buddhist-art-project/uploads/');
 define('PROFILE_UPLOAD_PATH', UPLOAD_PATH . 'profiles/');
 define('ARTWORK_UPLOAD_PATH', UPLOAD_PATH . 'artworks/');

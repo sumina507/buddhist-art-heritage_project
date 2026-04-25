@@ -446,7 +446,7 @@ $today = mysqli_fetch_assoc($today_result);
                                     ?>
                                     <tr data-title="<?php echo strtolower(htmlspecialchars($row['title'])); ?>" 
                                         data-artist="<?php echo strtolower(htmlspecialchars($artist_name)); ?>">
-                                        <td>#<?php echo $row['artwork_id']; ?></td>
+                                        <td><?php echo $row['artwork_id']; ?></td>
                                         <td>
                                             <img src="../uploads/artworks/<?php echo $row['image_path']; ?>" 
                                                  alt="<?php echo htmlspecialchars($row['title']); ?>"

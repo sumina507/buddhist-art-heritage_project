@@ -54,6 +54,59 @@ $stats = mysqli_fetch_assoc($stats_result);
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Modern Stats Cards - Matching Dashboard */
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+            border: 1px solid #e9ecef;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .stat-icon {
+            width: 55px;
+            height: 55px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .stat-icon.total { background: #e8f4fc; color: #3498db; }
+        .stat-icon.admins { background: #ffeaa7; color: #f39c12; }
+        .stat-icon.artists { background: #a29bfe; color: #6c5ce7; }
+        .stat-icon.users { background: #dfe6e9; color: #636e72; }
+        
+        .stat-info h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 0;
+        }
+        
+        .stat-info p {
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+        
         /* Search Bar Styles */
         .table-header {
             display: flex;
@@ -116,6 +169,163 @@ $stats = mysqli_fetch_assoc($stats_result);
             white-space: nowrap;
         }
         
+        /* Data Table */
+        .data-table-container {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th {
+            text-align: left;
+            padding: 0.8rem 0.5rem;
+            background: #f8f9fa;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .data-table td {
+            padding: 0.8rem 0.5rem;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.85rem;
+            color: #2c3e50;
+            vertical-align: middle;
+        }
+        
+        .data-table tr:hover {
+            background: #fef5f4;
+        }
+        
+        /* User Cell */
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .user-cell div {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .user-cell strong {
+            font-size: 0.9rem;
+            color: #2c3e50;
+        }
+        
+        .user-cell small {
+            font-size: 0.7rem;
+            color: #7f8c8d;
+        }
+        
+        /* Role Badges */
+        .role-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        .role-admin { background: #ffeaa7; color: #e17055; }
+        .role-artist { background: #a29bfe; color: white; }
+        .role-user { background: #dfe6e9; color: #636e72; }
+        
+        /* Status Badges */
+        .status-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: inline-block;
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        
+        .btn-edit {
+            background: #e8f4fc;
+            color: #3498db;
+        }
+        
+        .btn-edit:hover {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #f8d7da;
+            color: #e74c3c;
+        }
+        
+        .btn-delete:hover {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-disabled {
+            background: #f8f9fa;
+            color: #adb5bd;
+            cursor: not-allowed;
+        }
+        
+        /* No Data */
+        .no-data {
+            text-align: center;
+            padding: 3rem !important;
+        }
+        
+        .no-data i {
+            font-size: 3rem;
+            color: #ddd;
+            margin-bottom: 1rem;
+        }
+        
+        .no-data h4 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .no-data p {
+            color: #7f8c8d;
+        }
+        
         /* Toast Notification */
         .toast-notification {
             position: fixed;
@@ -159,25 +369,68 @@ $stats = mysqli_fetch_assoc($stats_result);
         }
         
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1);
-            }
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
         
         @keyframes fadeOut {
-            from {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1);
+            from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); visibility: hidden; }
+        }
+        
+        /* Admin Topbar */
+        .admin-topbar {
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border: 1px solid #e9ecef;
+        }
+        
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .topbar-left h2 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 1.3rem;
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #2c3e50;
+        }
+        
+        @media (max-width: 992px) {
+            .quick-stats {
+                grid-template-columns: repeat(2, 1fr);
             }
-            to {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(0.9);
-                visibility: hidden;
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .quick-stats {
+                grid-template-columns: 1fr;
+            }
+            .table-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .header-right {
+                justify-content: space-between;
             }
         }
     </style>
@@ -205,10 +458,10 @@ $stats = mysqli_fetch_assoc($stats_result);
                 <?php unset($_SESSION['message']); unset($_SESSION['message_type']); ?>
             <?php endif; ?>
             
-            <!-- Quick Stats -->
+            <!-- Quick Stats - Clean Design -->
             <div class="quick-stats">
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <div class="stat-icon total">
                         <i class="fas fa-users"></i>
                     </div>
                     <div class="stat-info">
@@ -218,7 +471,7 @@ $stats = mysqli_fetch_assoc($stats_result);
                 </div>
                 
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #ffeaa7, #f39c12);">
+                    <div class="stat-icon admins">
                         <i class="fas fa-crown"></i>
                     </div>
                     <div class="stat-info">
@@ -228,7 +481,7 @@ $stats = mysqli_fetch_assoc($stats_result);
                 </div>
                 
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #a29bfe, #6c5ce7);">
+                    <div class="stat-icon artists">
                         <i class="fas fa-paint-brush"></i>
                     </div>
                     <div class="stat-info">
@@ -238,7 +491,7 @@ $stats = mysqli_fetch_assoc($stats_result);
                 </div>
                 
                 <div class="stat-card">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #dfe6e9, #b2bec3);">
+                    <div class="stat-icon users">
                         <i class="fas fa-user"></i>
                     </div>
                     <div class="stat-info">
@@ -275,20 +528,15 @@ $stats = mysqli_fetch_assoc($stats_result);
                             </thead>
                         <tbody id="tableBody">
                             <?php
-                            // Get all users
-                            $sql = "SELECT * FROM users ORDER BY created_at ASC";
-                            $result = mysqli_query($conn, $sql);
+$sql = "SELECT * FROM users WHERE role = 'user' ORDER BY created_at ASC";                            $result = mysqli_query($conn, $sql);
                             
                             if (mysqli_num_rows($result) > 0) {
                                 while ($user = mysqli_fetch_assoc($result)) {
-                                    $status_class = 'status-active';
-                                    $status_text = 'Active';
-                                    $role_class = 'role-' . $user['role'];
                                     $is_current_user = ($user['user_id'] == $_SESSION['user_id']);
                                     ?>
                                     <tr data-name="<?php echo strtolower(htmlspecialchars($user['full_name'] ?? $user['username'])); ?>" 
                                         data-email="<?php echo strtolower(htmlspecialchars($user['email'])); ?>">
-                                        <td>#<?php echo $user['user_id']; ?></td>
+                                        <td><?php echo $user['user_id']; ?></td>
                                         <td>
                                             <div class="user-cell">
                                                 <img src="../uploads/profiles/<?php echo $user['profile_image']; ?>" 
@@ -302,14 +550,12 @@ $stats = mysqli_fetch_assoc($stats_result);
                                         </td>
                                         <td><?php echo htmlspecialchars($user['email']); ?></td>
                                         <td>
-                                            <span class="role-badge <?php echo $role_class; ?>">
+                                            <span class="role-badge role-<?php echo $user['role']; ?>">
                                                 <?php echo ucfirst($user['role']); ?>
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="status-badge <?php echo $status_class; ?>">
-                                                <?php echo $status_text; ?>
-                                            </span>
+                                            <span class="status-badge">Active</span>
                                         </td>
                                         <td><?php echo date('M d, Y', strtotime($user['created_at'])); ?></td>
                                         <td>
@@ -360,7 +606,6 @@ $stats = mysqli_fetch_assoc($stats_result);
         let visibleCount = 0;
         
         rows.forEach(row => {
-            // Skip the "no data" row
             if (row.classList.contains('no-data-row')) return;
             
             const name = row.getAttribute('data-name') || '';
@@ -374,7 +619,6 @@ $stats = mysqli_fetch_assoc($stats_result);
             }
         });
         
-        // Update the count display
         const tableInfo = document.getElementById('tableInfo');
         if (searchTerm === '') {
             tableInfo.innerHTML = '<?php echo $stats['total']; ?> users';
@@ -382,7 +626,6 @@ $stats = mysqli_fetch_assoc($stats_result);
             tableInfo.innerHTML = visibleCount + ' result' + (visibleCount != 1 ? 's' : '') + ' found';
         }
         
-        // Show "no results" message if needed
         const noDataRow = document.querySelector('.no-data-row');
         if (visibleCount === 0 && !noDataRow) {
             const tbody = document.getElementById('tableBody');

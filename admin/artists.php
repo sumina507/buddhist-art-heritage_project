@@ -443,7 +443,7 @@ $stats = mysqli_fetch_assoc($stats_result);
                                     ?>
                                     <tr data-name="<?php echo strtolower(htmlspecialchars($artist_name)); ?>" 
                                         data-email="<?php echo strtolower(htmlspecialchars($artist['email'])); ?>">
-                                        <td>#<?php echo $artist['artist_id']; ?></td>
+                                        <td><?php echo $artist['artist_id']; ?></td>
                                         <td>
                                             <div class="user-cell">
                                                 <img src="../uploads/profiles/<?php echo $artist['profile_image'] ?? 'default.jpg'; ?>" 
