@@ -1,0 +1,19 @@
+# Ignore upload folders
+uploads/
+*/uploads/
+
+# Ignore log files
+*.log
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore Windows thumbs
+Thumbs.db
+
+# Ignore IDE files
+.vscode/
+.idea/
+
+# Ignore database backup
+*.sql
